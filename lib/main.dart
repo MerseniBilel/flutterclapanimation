@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 void main() {
@@ -37,7 +39,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController scoreInAnimationController,
       scoreOutAnimationController;
   late Animation scoreOutPosition;
-
+  Timer? timer, scoreOutETA;
   @override
   void initState() {
     super.initState();
@@ -50,12 +52,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       setState(() {});
     });
 
-    scoreInAnimationController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _scoreWidgetStatus = ScoreWidgetStatus.BECOMING_INVISIBLE;
-        scoreOutAnimationController.forward(from: 0.0);
-      }
-    });
+ 
 
     scoreOutAnimationController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 900));
@@ -77,13 +74,38 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void startAnimation() {
-    if (_scoreWidgetStatus == ScoreWidgetStatus.HIDDEN) {
-      scoreInAnimationController.forward(from: 0.0);
-      _scoreWidgetStatus = ScoreWidgetStatus.BECOMING_INVISIBLE;
-    }
+    
     setState(() {
       counter++;
     });
+  }
+
+    void increment(Timer? t) {
+    setState(() {
+      counter++;
+    });
+  }
+
+   void onTapDown(TapDownDetails tap) {
+     if(scoreOutETA != null) {
+       scoreOutETA!.cancel();
+     }
+    // User pressed the button. This can be a tap or a hold.
+    if (_scoreWidgetStatus == ScoreWidgetStatus.HIDDEN) {
+      scoreInAnimationController.forward(from: 0.0);
+      _scoreWidgetStatus = ScoreWidgetStatus.BECOMING_VISIBLE;
+    }
+    increment(null); // Take care of tap
+    timer = Timer.periodic(duration, increment); // Takes care of hold
+  }
+
+   void onTapUp(TapUpDetails tap) {
+     scoreOutETA = Timer(duration, () {
+      scoreOutAnimationController.forward(from: 0.0);
+      _scoreWidgetStatus = ScoreWidgetStatus.BECOMING_INVISIBLE;
+    });
+    // User removed his finger from button.
+    timer!.cancel();
   }
 
   @override
@@ -115,7 +137,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               Positioned(
                 child: GestureDetector(
-                  onTap: () => startAnimation(),
+                  // onTap: () => startAnimation(),
+                  onTapDown: (details) => onTapDown(details),
+                  onTapUp: (details) => onTapUp(details),
                   child: Container(
                     height: 100,
                     width: 100,
